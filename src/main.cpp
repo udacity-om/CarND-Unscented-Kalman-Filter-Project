@@ -36,9 +36,22 @@ int main()
   // used to compute the RMSE later
   Tools tools;
   vector<VectorXd> estimations;
-  vector<VectorXd> ground_truth;
+  vector<VectorXd> ground_truth;  
+  
+   string out_file_name_ = "out_file.txt";
+   ofstream out_file_(out_file_name_.c_str(), ofstream::out);
+   if(!out_file_.is_open()) {
+      cerr << "Cannot open output file: " << out_file_name_ << endl;
+      exit(EXIT_FAILURE);
+   }else{
+      cout<<"out_file.txt opened"<<endl;
+   }
+   // write the file headers
+   out_file_ << "Timestamp" << "\t";
+   out_file_ << "Sensor" << "\t";
+   out_file_ << "NIS" << "\n";
 
-  h.onMessage([&ukf,&tools,&estimations,&ground_truth](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
+  h.onMessage([&ukf,&tools,&estimations,&ground_truth,&out_file_](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
@@ -61,6 +74,7 @@ int main()
           MeasurementPackage meas_package;
           istringstream iss(sensor_measurment);
     	  long long timestamp;
+        static int events = 0;
 
     	  // reads first element from the current line
     	  string sensor_type;
@@ -76,6 +90,8 @@ int main()
           		meas_package.raw_measurements_ << px, py;
           		iss >> timestamp;
           		meas_package.timestamp_ = timestamp;
+               out_file_ << timestamp << "\t";
+               out_file_ << "L" << "\t";
           } else if (sensor_type.compare("R") == 0) {
 
       	  		meas_package.sensor_type_ = MeasurementPackage::RADAR;
@@ -89,6 +105,8 @@ int main()
           		meas_package.raw_measurements_ << ro,theta, ro_dot;
           		iss >> timestamp;
           		meas_package.timestamp_ = timestamp;
+               out_file_ << timestamp << "\t";
+               out_file_ << "R" << "\t";
           }
           float x_gt;
     	  float y_gt;
@@ -138,8 +156,21 @@ int main()
           msgJson["rmse_vy"] = RMSE(3);
           auto msg = "42[\"estimate_marker\"," + msgJson.dump() + "]";
           // std::cout << msg << std::endl;
-          ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
-	  
+          ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);          
+
+          if(sensor_type.compare("L") == 0) {
+             out_file_ << ukf.nis_laser_ << "\n";
+          }else if (sensor_type.compare("R") == 0) {
+             out_file_ << ukf.nis_radar_ << "\n";
+          }	  
+          events++;
+          //cout<<"event number: "<<events<<endl;
+          
+          // close files
+          if(out_file_.is_open() && (499 == events)) {
+             cout<<"out_file.txt closed"<<endl;
+             out_file_.close();
+          }
         }
       } else {
         

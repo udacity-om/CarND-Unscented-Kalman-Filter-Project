@@ -31,9 +31,9 @@ UKF::UKF() {
   P_ = MatrixXd(5, 5);
   P_ << 0.0225,0,0,0,0,
         0,0.0225,0,0,0,
-        0,0,1,0,0,
-        0,0,0,1,0,
-        0,0,0,0,1;
+        0,0,30,0,0,
+        0,0,0,50,0,
+        0,0,0,0,50;
 
   ///* time when the state is true, in us
   time_us_ = 0;
@@ -306,7 +306,8 @@ void UKF::UpdateLidar(MeasurementPackage meas_package) {
   MatrixXd I = MatrixXd::Identity(x_size, x_size);
   P_ = (I - (K * H_)) * P_;
   
-  #epsilon_ = y.trans * S.inverse() * y
+  //calculate NIS
+  nis_laser_ = y.transpose() * S.inverse() * y;
 }
 
 /**
@@ -429,6 +430,9 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
   
   x_ += (K*z_diff);
   P_ -= (K*S*K.transpose());  
+  
+  //calculate NIS
+  nis_radar_ = z_diff.transpose() * S.inverse() * z_diff;
 }
 
 static void angleNormalization(double *angle)
